@@ -30,13 +30,18 @@ def kpi_cards(request):
     ).count()
     
     # Среднее время согласования (только для подписанных)
+    # Фильтруем только договоры, где signed_at >= created_at (исключаем аномалии)
     avg_duration = Contract.objects.filter(
         status=Contract.Status.SIGNED,
         signed_at__isnull=False
+    ).exclude(
+        signed_at__lt=F('created_at')  # Исключаем договоры, где дата подписания раньше создания
     ).annotate(
         duration=ExpressionWrapper(F('signed_at') - F('created_at'), output_field=DurationField())
+    ).filter(
+        duration__gte=timedelta(days=0)  # Дополнительная фильтрация только положительных значений
     ).aggregate(avg=Avg('duration'))['avg']
-    
+
     # Переводим timedelta в дни (float)
     avg_days = round(avg_duration.total_seconds() / 86400, 1) if avg_duration else 0
     

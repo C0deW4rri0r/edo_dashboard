@@ -118,19 +118,24 @@
             </div>
         </div>
         
-        <!-- Графики: Типы и Таблица -->
-        <div class="row">
-            <div class="col-md-6 mb-3 fade-in">
+        <!-- График: Распределение по типам -->
+        <div class="row mb-4">
+            <div class="col-12 fade-in">
                 <div class="chart-card">
                     <h5 class="chart-title">
                         <i class="fas fa-chart-pie text-primary"></i>
-                        Распределение по типам
+                        Распределение по типам договоров
                     </h5>
-                    <canvas id="typesChart"></canvas>
+                    <div style="max-width: 600px; margin: 0 auto;">
+                        <canvas id="typesChart"></canvas>
+                    </div>
                 </div>
             </div>
-            
-            <div class="col-md-6 mb-3 fade-in">
+        </div>
+
+        <!-- Таблица: Топ-5 медленных согласований -->
+        <div class="row">
+            <div class="col-12 fade-in">
                 <div class="table-card">
                     <h5 class="chart-title">
                         <i class="fas fa-trophy text-warning"></i>
@@ -157,6 +162,7 @@
                 </div>
             </div>
         </div>
+        
     </div>
     
     <!-- Bootstrap JS -->
