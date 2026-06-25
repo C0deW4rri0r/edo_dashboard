@@ -14,7 +14,7 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write('Начинаю генерацию тестовых данных...')
         
-        # 1. Создаем пользователей (20-30 человек)
+        # 1. Создаем пользователей (25 человек)
         self.stdout.write('Создаю пользователей...')
         users = []
         for i in range(25):
@@ -32,7 +32,7 @@ class Command(BaseCommand):
         
         self.stdout.write(self.style.SUCCESS(f'✓ Создано {len(users)} пользователей'))
         
-        # 2. Очищаем старые данные (опционально)
+        # 2. Очищаем старые данные
         Contract.objects.all().delete()
         ContractStatusHistory.objects.all().delete()
         
@@ -42,8 +42,8 @@ class Command(BaseCommand):
         statuses = [status[0] for status in Contract.Status.choices]
         contract_types = [ctype[0] for ctype in Contract.ContractType.choices]
         
-        # Веса для распределения статусов (больше подписанных и в работе)
-        status_weights = [0.1, 0.15, 0.15, 0.1, 0.4, 0.1]  # DRAFT, LAWYER, ACCOUNTANT, SIGNING, SIGNED, REJECTED
+        # Веса для распределения статусов
+        status_weights = [0.1, 0.15, 0.15, 0.1, 0.4, 0.1]
         
         for i in range(300):
             # Случайная дата за последние 12 месяцев
@@ -78,30 +78,53 @@ class Command(BaseCommand):
         self.stdout.write('Генерирую историю статусов...')
         history_records = []
         
-        for contract in Contract.objects.all():
-            # Для каждого договора создаем 1-5 записей истории
-            num_changes = random.randint(1, 5)
+        # Получаем все договоры из БД (после bulk_create они там есть)
+        all_contracts = Contract.objects.all()
+        
+        for contract in all_contracts:
+            # Для каждого договора создаем 2-4 записи истории
+            num_changes = random.randint(2, 4)
             current_status = Contract.Status.DRAFT
             
-            for _ in range(num_changes):
-                # Выбираем следующий статус (прогрессия)
+            # Определяем конечную дату для истории
+            end_date = contract.signed_at if contract.signed_at else timezone.now()
+            start_date = contract.created_at
+            
+            # Проверяем, что есть временной диапазон
+            if start_date >= end_date:
+                # Если даты равны или start > end, добавляем хотя бы одну запись
+                history = ContractStatusHistory(
+                    contract=contract,
+                    old_status=Contract.Status.DRAFT,
+                    new_status=contract.status,
+                    changed_at=start_date + timedelta(minutes=1),
+                    changed_by=random.choice(users)
+                )
+                history_records.append(history)
+                continue
+            
+            days_diff = (end_date - start_date).days
+            if days_diff < 1:
+                days_diff = 1
+            
+            # Генерируем записи истории с равномерным распределением по времени
+            for j in range(num_changes):
+                # Выбираем следующий статус
                 possible_next = self._get_next_statuses(current_status)
                 if not possible_next:
                     break
                 
                 next_status = random.choice(possible_next)
                 
-                # Дата изменения между созданием и подписанием (или сейчас)
-                start_date = contract.created_at
-                end_date = contract.signed_at if contract.signed_at else timezone.now()
-                if start_date >= end_date:
-                    break
+                # Равномерно распределяем изменения по временному диапазону
+                change_day = int((j + 1) * days_diff / (num_changes + 1))
+                change_date = start_date + timedelta(days=change_day)
                 
-                days_diff = (end_date - start_date).days
-                if days_diff < 1:
-                    break
-                
-                change_date = start_date + timedelta(days=random.randint(0, days_diff))
+                # Добавляем случайные часы для реалистичности
+                change_date = change_date + timedelta(
+                    hours=random.randint(0, 23),
+                    minutes=random.randint(0, 59)
+                )
                 
                 history = ContractStatusHistory(
                     contract=contract,
@@ -116,6 +139,7 @@ class Command(BaseCommand):
                 if current_status in [Contract.Status.SIGNED, Contract.Status.REJECTED]:
                     break
         
+        # Массовое создание истории
         ContractStatusHistory.objects.bulk_create(history_records)
         self.stdout.write(self.style.SUCCESS(f'✓ Создано {len(history_records)} записей истории'))
         
