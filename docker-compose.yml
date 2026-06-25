@@ -1,0 +1,40 @@
+# ========================================
+# Docker Compose для аналитического дашборда ЭДО
+# ========================================
+# Позволяет запустить проект одной командой: docker-compose up
+
+version: '3.9'
+
+services:
+  # Основной сервис — Django-приложение
+  web:
+    build: .
+    container_name: edo_dashboard_web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Монтируем код для разработки (hot-reload)
+      - .:/app
+      # Отдельный volume для статики
+      - static_data:/app/staticfiles
+      # Отдельный volume для логов
+      - logs_data:/app/logs
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DEBUG=1
+    command: >
+      bash -c "
+        python manage.py migrate --noinput &&
+        python manage.py seed_data &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+    stdin_open: true
+    tty: true
+
+# Volumes для персистентности данных
+volumes:
+  static_data:
+    driver: local
+  logs_data:
+    driver: local
