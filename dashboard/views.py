@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.views.decorators.cache import cache_page
 from datetime import timedelta
 from .models import Contract
+from django.db.models.functions import Now
 
 # Настройка логгера для приложения dashboard
 logger = logging.getLogger('dashboard')
@@ -200,27 +201,29 @@ def contract_types(request):
 
 @cache_page(300)
 def slowest_contracts(request):
-    """API: Топ-5 самых медленных согласований"""
+    """API: Топ-5 самых медленных согласований (зависшие договоры)"""
     try:
         logger.info('Запрос данных о медленных согласованиях')
         
-        slowest = Contract.objects.filter(
-            status=Contract.Status.SIGNED,
-            signed_at__isnull=False
-        ).exclude(
-            signed_at__lt=F('created_at')
-        ).annotate(
-            duration_days=ExpressionWrapper(
-                F('signed_at') - F('created_at'), 
-                output_field=DurationField()
-            )
-        ).filter(
-            duration_days__gte=timedelta(days=0)
-        ).order_by('-duration_days')[:5]
+        pending_statuses = [
+            Contract.Status.LAWYER_APPROVAL,
+            Contract.Status.ACCOUNTANT_APPROVAL,
+            Contract.Status.SIGNING
+        ]
         
+        # Берем 5 самых старых договоров в процессе согласования
+        # (чем раньше создан, тем дольше висит)
+        slowest = Contract.objects.filter(
+            status__in=pending_statuses
+        ).select_related('responsible_user').order_by('created_at')[:5]
+        
+        now = timezone.now()
         data = []
+        
         for contract in slowest:
-            days = contract.duration_days.total_seconds() / 86400
+            # Считаем дни на уровне Python (безопасно для SQLite)
+            days = (now - contract.created_at).total_seconds() / 86400
+            
             data.append({
                 'number': contract.contract_number,
                 'counterparty': contract.counterparty,
@@ -230,7 +233,6 @@ def slowest_contracts(request):
             })
         
         logger.info(f'Медленные согласования: найдено {len(data)} договоров')
-        
         return JsonResponse({'data': data})
     
     except Exception as e:

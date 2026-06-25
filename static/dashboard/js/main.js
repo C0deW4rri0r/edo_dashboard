@@ -47,15 +47,39 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadAllData() {
     console.log('📊 Начинаю загрузку всех данных...');
 
-    await Promise.all([
-        loadKpiCards(),
-        loadFunnelChart(),
-        loadDynamicsChart(),
-        loadTypesChart(),
-        loadSlowestContracts()
-    ]);
+    // Показываем индикатор загрузки
+    showLoadingIndicator();
 
-    console.log('✅ Все данные загружены');
+    try {
+        await Promise.all([
+            loadKpiCards(),
+            loadFunnelChart(),
+            loadDynamicsChart(),
+            loadTypesChart(),
+            loadSlowestContracts()
+        ]);
+
+        console.log('✅ Все данные загружены');
+    } catch (error) {
+        console.error('❌ Ошибка загрузки:', error);
+    } finally {
+        // Скрываем индикатор загрузки
+        hideLoadingIndicator();
+    }
+}
+
+function showLoadingIndicator() {
+    // Добавляем класс loading ко всем карточкам
+    document.querySelectorAll('.kpi-card, .chart-card, .table-card').forEach(el => {
+        el.style.opacity = '0.5';
+    });
+}
+
+function hideLoadingIndicator() {
+    // Убираем класс loading
+    document.querySelectorAll('.kpi-card, .chart-card, .table-card').forEach(el => {
+        el.style.opacity = '1';
+    });
 }
 
 /**

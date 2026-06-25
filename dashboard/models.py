@@ -2,6 +2,7 @@ from django.db import models
 
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 class Contract(models.Model):
     """Модель Договора"""
@@ -45,7 +46,7 @@ class Contract(models.Model):
         related_name='contracts',
         verbose_name="Ответственный"
     )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Дата создания")
     signed_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата подписания")
 
     class Meta:

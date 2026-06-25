@@ -106,6 +106,36 @@
                 </div>
             </div>
         </div>
+
+        <!-- Таблица: Топ-5 медленных согласований -->
+        <div class="row mb-4">
+            <div class="col-12 fade-in">
+                <div class="table-card">
+                    <h5 class="chart-title">
+                        <i class="fas fa-trophy text-warning"></i>
+                        Топ-5 медленных согласований
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>№ Договора</th>
+                                    <th>Контрагент</th>
+                                    <th>Статус</th>
+                                    <th>Ответственный</th>
+                                    <th>Дней</th>
+                                </tr>
+                            </thead>
+                            <tbody id="slowest-table">
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">Загрузка...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <!-- Графики: Воронка и Динамика -->
         <div class="row mb-4">
@@ -140,36 +170,6 @@
                     </h5>
                     <div style="max-width: 600px; margin: 0 auto;">
                         <canvas id="typesChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Таблица: Топ-5 медленных согласований -->
-        <div class="row">
-            <div class="col-12 fade-in">
-                <div class="table-card">
-                    <h5 class="chart-title">
-                        <i class="fas fa-trophy text-warning"></i>
-                        Топ-5 медленных согласований
-                    </h5>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>№ Договора</th>
-                                    <th>Контрагент</th>
-                                    <th>Статус</th>
-                                    <th>Ответственный</th>
-                                    <th>Дней</th>
-                                </tr>
-                            </thead>
-                            <tbody id="slowest-table">
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted">Загрузка...</td>
-                                </tr>
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </div>

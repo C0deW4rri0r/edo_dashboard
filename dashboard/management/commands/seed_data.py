@@ -6,7 +6,7 @@ from django.utils import timezone
 from faker import Faker
 from dashboard.models import Contract, ContractStatusHistory
 
-fake = Faker('ru_RU')  # Русская локализация для реалистичных данных
+fake = Faker('ru_RU')
 
 class Command(BaseCommand):
     help = 'Генерация тестовых данных для дашборда'
@@ -14,7 +14,7 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write('Начинаю генерацию тестовых данных...')
         
-        # 1. Создаем пользователей (25 человек)
+        # 1. Создаем пользователей
         self.stdout.write('Создаю пользователей...')
         users = []
         for i in range(25):
@@ -36,88 +36,137 @@ class Command(BaseCommand):
         Contract.objects.all().delete()
         ContractStatusHistory.objects.all().delete()
         
-        # 3. Генерируем 300 договоров за последние 12 месяцев
+        # 3. Генерируем 300 договоров
         self.stdout.write('Генерирую договоры...')
         contracts = []
-        statuses = [status[0] for status in Contract.Status.choices]
         contract_types = [ctype[0] for ctype in Contract.ContractType.choices]
-        
-        # Веса для распределения статусов
-        status_weights = [0.1, 0.15, 0.15, 0.1, 0.4, 0.1]
-        
+
+        now = timezone.now()
+
         for i in range(300):
             days_ago = random.randint(0, 365)
-            created_date = timezone.now() - timedelta(days=days_ago)
-            status = random.choices(statuses, weights=status_weights)[0]
+            created_date = now - timedelta(days=days_ago)
+            
+            # РЕАЛИСТИЧНОЕ распределение статусов
+            if days_ago > 60:
+                # Старые договоры (>60 дней) - большинство уже подписаны или отклонены
+                # Но некоторые зависли на разных этапах
+                status_choice = random.choices(
+                    [Contract.Status.SIGNED, Contract.Status.REJECTED, 
+                    Contract.Status.LAWYER_APPROVAL, Contract.Status.ACCOUNTANT_APPROVAL, 
+                    Contract.Status.SIGNING, Contract.Status.DRAFT],
+                    weights=[0.65, 0.20, 0.05, 0.05, 0.03, 0.02]
+                )[0]
+            elif days_ago > 14:
+                # Средний возраст (14-60 дней) - создаем ПРОСРОЧЕННЫЕ на разных этапах
+                # Здесь должно быть больше зависших на разных стадиях
+                status_choice = random.choices(
+                    [Contract.Status.SIGNED, Contract.Status.REJECTED, 
+                    Contract.Status.LAWYER_APPROVAL, Contract.Status.ACCOUNTANT_APPROVAL, 
+                    Contract.Status.SIGNING, Contract.Status.DRAFT],
+                    weights=[0.50, 0.15, 0.10, 0.10, 0.10, 0.05]
+                )[0]
+            else:
+                # Новые договоры (<14 дней) - чаще в процессе, много черновиков
+                status_choice = random.choices(
+                    [Contract.Status.DRAFT, Contract.Status.LAWYER_APPROVAL, 
+                    Contract.Status.ACCOUNTANT_APPROVAL, Contract.Status.SIGNING,
+                    Contract.Status.SIGNED, Contract.Status.REJECTED],
+                    weights=[0.20, 0.30, 0.20, 0.15, 0.10, 0.05]
+                )[0]
             
             contract = Contract(
                 contract_number=f"Д-{created_date.year}-{i+1:04d}",
                 counterparty=fake.company(),
                 contract_type=random.choice(contract_types),
-                status=status,
+                status=status_choice,
                 responsible_user=random.choice(users),
                 created_at=created_date,
             )
             
-            if status == Contract.Status.SIGNED:
-                signing_days = random.randint(5, 30)
-                contract.signed_at = created_date + timedelta(days=signing_days)
+            # Если договор подписан - устанавливаем дату подписания
+            if status_choice == Contract.Status.SIGNED:
+                signing_days = random.randint(3, 25)
+                signed_date = created_date + timedelta(days=signing_days)
+                
+                if signed_date <= now:
+                    contract.signed_at = signed_date
+                else:
+                    contract.status = Contract.Status.SIGNING
             
             contracts.append(contract)
-        
+
         Contract.objects.bulk_create(contracts)
         self.stdout.write(self.style.SUCCESS(f'✓ Создано {len(contracts)} договоров'))
         
-        # 4. Генерируем историю статусов (ЦЕЛЬ: 1200-1800 записей)
+        # 4. Генерируем историю статусов
         self.stdout.write('Генерирую историю статусов...')
         history_records = []
-        
+
         all_contracts = Contract.objects.all()
-        
-        for contract in all_contracts:
-            # 🆕 Увеличиваем количество записей: от 4 до 7 на договор
-            # Это даст 300 × 5 (среднее) = 1500 записей
-            num_changes = random.randint(4, 7)
+        self.stdout.write(f'Найдено договоров в БД: {all_contracts.count()}')
+
+        for idx, contract in enumerate(all_contracts):
+            # Определяем количество записей истории в зависимости от статуса
+            if contract.status == Contract.Status.DRAFT:
+                num_records = 1  # Черновик - только одна запись
+            elif contract.status in [Contract.Status.LAWYER_APPROVAL, Contract.Status.ACCOUNTANT_APPROVAL]:
+                num_records = random.randint(2, 3)  # На согласовании - 2-3 записи
+            elif contract.status == Contract.Status.SIGNING:
+                num_records = random.randint(3, 4)  # На подписании - 3-4 записи
+            elif contract.status in [Contract.Status.SIGNED, Contract.Status.REJECTED]:
+                num_records = random.randint(4, 6)  # Завершенные - 4-6 записей
+            else:
+                num_records = random.randint(2, 4)
             
-            # Определяем конечную дату для истории
-            end_date = contract.signed_at if contract.signed_at else timezone.now()
+            # Определяем временной диапазон
+            if contract.signed_at:
+                end_date = contract.signed_at
+            else:
+                end_date = now
+            
             start_date = contract.created_at
-            
-            # Проверяем временной диапазон
-            if start_date >= end_date:
-                # Создаем хотя бы одну запись
-                history = ContractStatusHistory(
-                    contract=contract,
-                    old_status=Contract.Status.DRAFT,
-                    new_status=contract.status,
-                    changed_at=start_date + timedelta(minutes=1),
-                    changed_by=random.choice(users)
-                )
-                history_records.append(history)
-                continue
-            
             days_diff = (end_date - start_date).days
+            
             if days_diff < 1:
                 days_diff = 1
             
-            # 🆕 Определяем реальную цепочку статусов для этого договора
-            status_chain = self._build_status_chain(contract.status, num_changes)
-            
-            # Генерируем записи истории по цепочке
-            for j, (old_status, new_status) in enumerate(status_chain):
-                # Равномерно распределяем изменения по времени
-                change_day = int((j + 1) * days_diff / (len(status_chain) + 1))
-                change_date = start_date + timedelta(days=change_day)
+            # Создаём записи истории
+            for j in range(num_records):
+                if num_records == 1:
+                    change_date = start_date + timedelta(days=days_diff // 2)
+                else:
+                    change_date = start_date + timedelta(days=int((j + 1) * days_diff / (num_records + 1)))
                 
-                # Добавляем случайные часы/минуты для реалистичности
-                change_date = change_date + timedelta(
-                    hours=random.randint(9, 18),  # Рабочие часы 9-18
-                    minutes=random.randint(0, 59)
+                change_date = change_date.replace(
+                    hour=random.randint(9, 18),
+                    minute=random.randint(0, 59),
+                    second=0
                 )
                 
-                # Убеждаемся, что дата не выходит за пределы
-                if change_date > end_date:
-                    change_date = end_date - timedelta(hours=1)
+                # Определяем статусы для этой записи
+                if j == 0:
+                    old_status = Contract.Status.DRAFT
+                else:
+                    # Берём предыдущий статус из уже созданных записей для этого договора
+                    prev_records = [r for r in history_records if r.contract == contract]
+                    old_status = prev_records[-1].new_status if prev_records else Contract.Status.DRAFT
+                
+                # Определяем новый статус
+                if j == num_records - 1:
+                    new_status = contract.status
+                else:
+                    # Промежуточные статусы - прогрессия
+                    if old_status == Contract.Status.DRAFT:
+                        new_status = Contract.Status.LAWYER_APPROVAL
+                    elif old_status == Contract.Status.LAWYER_APPROVAL:
+                        new_status = Contract.Status.ACCOUNTANT_APPROVAL
+                    elif old_status == Contract.Status.ACCOUNTANT_APPROVAL:
+                        new_status = Contract.Status.SIGNING
+                    elif old_status == Contract.Status.SIGNING:
+                        new_status = contract.status
+                    else:
+                        new_status = contract.status
                 
                 history = ContractStatusHistory(
                     contract=contract,
@@ -127,99 +176,47 @@ class Command(BaseCommand):
                     changed_by=random.choice(users)
                 )
                 history_records.append(history)
-        
-        # Массовое создание истории
+            
+            # Отладочный вывод для первых 5 договоров
+            if idx < 5:
+                self.stdout.write(f'  Договор {contract.contract_number} ({contract.get_status_display()}): создано {num_records} записей истории')
+
         ContractStatusHistory.objects.bulk_create(history_records)
         self.stdout.write(self.style.SUCCESS(f'✓ Создано {len(history_records)} записей истории'))
         
-        self.stdout.write(self.style.SUCCESS('\n🎉 Генерация завершена!'))
+        # 5. Статистика
+        overdue_count = Contract.objects.filter(
+            created_at__lt=now - timedelta(days=14),
+            status__in=[
+                Contract.Status.LAWYER_APPROVAL,
+                Contract.Status.ACCOUNTANT_APPROVAL,
+                Contract.Status.SIGNING
+            ]
+        ).count()
+        
+        signed_count = Contract.objects.filter(status=Contract.Status.SIGNED).count()
+        
+        # Отладка: проверяем просроченные договоры
+        overdue_contracts = Contract.objects.filter(
+            created_at__lt=now - timedelta(days=14),
+            status__in=[
+                Contract.Status.LAWYER_APPROVAL,
+                Contract.Status.ACCOUNTANT_APPROVAL,
+                Contract.Status.SIGNING
+            ]
+        )
+        self.stdout.write(f'\nОтладка просроченных:')
+        self.stdout.write(f'  Всего договоров: {Contract.objects.count()}')
+        self.stdout.write(f'  Договоров старше 14 дней: {Contract.objects.filter(created_at__lt=now - timedelta(days=14)).count()}')
+        self.stdout.write(f'  Договоров в процессе согласования: {Contract.objects.filter(status__in=[Contract.Status.LAWYER_APPROVAL, Contract.Status.ACCOUNTANT_APPROVAL, Contract.Status.SIGNING]).count()}')
+        self.stdout.write(f'  Просроченных (оба условия): {overdue_count}')
+        if overdue_count > 0:
+            self.stdout.write(f'  Примеры просроченных:')
+            for c in overdue_contracts[:3]:
+                self.stdout.write(f'    - {c.contract_number}: создан {c.created_at}, статус {c.status}')
+        
+        self.stdout.write(self.style.SUCCESS(f'\n Генерация завершена!'))
         self.stdout.write(f'Всего договоров: {Contract.objects.count()}')
+        self.stdout.write(f'Подписанных: {signed_count}')
+        self.stdout.write(f'Просроченных: {overdue_count}')
         self.stdout.write(f'Всего записей истории: {ContractStatusHistory.objects.count()}')
-
-    def _build_status_chain(self, final_status, max_changes):
-        """
-        Строит реалистичную цепочку переходов статусов для договора.
-        Возвращает список кортежей (old_status, new_status).
-        """
-        chain = []
-        current = Contract.Status.DRAFT
-        
-        # Базовая прогрессия статусов
-        progressions = {
-            Contract.Status.DRAFT: [Contract.Status.LAWYER_APPROVAL],
-            Contract.Status.LAWYER_APPROVAL: [
-                Contract.Status.ACCOUNTANT_APPROVAL,  # Успех
-                Contract.Status.DRAFT,  # Возврат на доработку (реалистично!)
-            ],
-            Contract.Status.ACCOUNTANT_APPROVAL: [
-                Contract.Status.SIGNING,  # Успех
-                Contract.Status.LAWYER_APPROVAL,  # Возврат (реалистично!)
-            ],
-            Contract.Status.SIGNING: [
-                Contract.Status.SIGNED,  # Успех
-                Contract.Status.ACCOUNTANT_APPROVAL,  # Возврат (реалистично!)
-            ],
-            Contract.Status.SIGNED: [],
-            Contract.Status.REJECTED: [],
-        }
-        
-        # Вероятности возвратов (чем дальше в процессе, тем реже возвраты)
-        rollback_probs = {
-            Contract.Status.LAWYER_APPROVAL: 0.3,      # 30% шанс возврата
-            Contract.Status.ACCOUNTANT_APPROVAL: 0.2,  # 20% шанс возврата
-            Contract.Status.SIGNING: 0.1,              # 10% шанс возврата
-        }
-        
-        for _ in range(max_changes):
-            possible_next = progressions.get(current, [])
-            if not possible_next:
-                break
-            
-            # Определяем, будет ли возврат
-            if current in rollback_probs and random.random() < rollback_probs[current]:
-                # Возврат на предыдущий этап
-                next_status = possible_next[-1]  # Последний вариант = возврат
-            else:
-                # Прогресс вперед
-                next_status = possible_next[0]  # Первый вариант = прогресс
-            
-            chain.append((current, next_status))
-            current = next_status
-            
-            # Если достигли финального статуса — останавливаемся
-            if current in [Contract.Status.SIGNED, Contract.Status.REJECTED]:
-                break
-        
-        # 🆕 Если финальный статус договора не совпадает с цепочкой — добавляем переход
-        if chain and chain[-1][1] != final_status:
-            chain.append((chain[-1][1], final_status))
-        
-        # Если цепочка пустая — добавляем хотя бы один переход
-        if not chain:
-            chain.append((Contract.Status.DRAFT, final_status))
-        
-        return chain
-
-    def _get_next_statuses(self, current_status):
-        """Старый метод — оставляем для совместимости"""
-        transitions = {
-            Contract.Status.DRAFT: [Contract.Status.LAWYER_APPROVAL],
-            Contract.Status.LAWYER_APPROVAL: [Contract.Status.ACCOUNTANT_APPROVAL, Contract.Status.REJECTED],
-            Contract.Status.ACCOUNTANT_APPROVAL: [Contract.Status.SIGNING, Contract.Status.REJECTED],
-            Contract.Status.SIGNING: [Contract.Status.SIGNED, Contract.Status.REJECTED],
-            Contract.Status.SIGNED: [],
-            Contract.Status.REJECTED: [],
-        }
-        return transitions.get(current_status, [])
-    
-    def _get_next_statuses(self, current_status):
-        """Возвращает возможные следующие статусы"""
-        transitions = {
-            Contract.Status.DRAFT: [Contract.Status.LAWYER_APPROVAL],
-            Contract.Status.LAWYER_APPROVAL: [Contract.Status.ACCOUNTANT_APPROVAL, Contract.Status.REJECTED],
-            Contract.Status.ACCOUNTANT_APPROVAL: [Contract.Status.SIGNING, Contract.Status.REJECTED],
-            Contract.Status.SIGNING: [Contract.Status.SIGNED, Contract.Status.REJECTED],
-            Contract.Status.SIGNED: [],
-            Contract.Status.REJECTED: [],
-        }
-        return transitions.get(current_status, [])
