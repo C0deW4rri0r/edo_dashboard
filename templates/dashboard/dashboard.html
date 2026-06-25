@@ -1,9 +1,554 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Дашборд ЭДО</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аналитический дашборд ЭДО</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --success-color: #198754;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #0dcaf0;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .dashboard-container {
+            padding: 20px;
+        }
+        
+        .dashboard-header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .kpi-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 5px solid var(--primary-color);
+        }
+        
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .kpi-card.success { border-left-color: var(--success-color); }
+        .kpi-card.warning { border-left-color: var(--warning-color); }
+        .kpi-card.danger { border-left-color: var(--danger-color); }
+        
+        .kpi-icon {
+            font-size: 2.5rem;
+            opacity: 0.8;
+        }
+        
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .kpi-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .chart-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .table-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .table thead th {
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .badge-slow {
+            background: var(--danger-color);
+            font-size: 0.9rem;
+        }
+        
+        .refresh-btn {
+            transition: transform 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            transform: rotate(180deg);
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .kpi-value {
+                font-size: 2rem;
+            }
+            .kpi-icon {
+                font-size: 2rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Дашборд загружается...</h1>
+    <div class="dashboard-container">
+        <!-- Заголовок -->
+        <div class="dashboard-header fade-in">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">
+                        <i class="fas fa-chart-line text-primary"></i>
+                        Аналитический дашборд ЭДО
+                    </h2>
+                    <p class="text-muted mb-0 mt-2">Мониторинг договорной работы в реальном времени</p>
+                </div>
+                <button class="btn btn-primary refresh-btn" onclick="refreshAllData()">
+                    <i class="fas fa-sync-alt"></i> Обновить данные
+                </button>
+            </div>
+        </div>
+        
+        <!-- KPI Карточки -->
+        <div class="row mb-4">
+            <div class="col-md-3 col-sm-6 mb-3 fade-in">
+                <div class="kpi-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label">Всего договоров</div>
+                            <div class="kpi-value text-primary" id="kpi-total">0</div>
+                        </div>
+                        <div class="kpi-icon text-primary">
+                            <i class="fas fa-file-contract"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 col-sm-6 mb-3 fade-in">
+                <div class="kpi-card warning">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label">На согласовании</div>
+                            <div class="kpi-value text-warning" id="kpi-approval">0</div>
+                        </div>
+                        <div class="kpi-icon text-warning">
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 col-sm-6 mb-3 fade-in">
+                <div class="kpi-card danger">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label">Просрочено</div>
+                            <div class="kpi-value text-danger" id="kpi-overdue">0</div>
+                        </div>
+                        <div class="kpi-icon text-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 col-sm-6 mb-3 fade-in">
+                <div class="kpi-card success">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label">Среднее время (дни)</div>
+                            <div class="kpi-value text-success" id="kpi-avg-days">0</div>
+                        </div>
+                        <div class="kpi-icon text-success">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Графики: Воронка и Динамика -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3 fade-in">
+                <div class="chart-card">
+                    <h5 class="chart-title">
+                        <i class="fas fa-filter text-primary"></i>
+                        Воронка согласования
+                    </h5>
+                    <canvas id="funnelChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-3 fade-in">
+                <div class="chart-card">
+                    <h5 class="chart-title">
+                        <i class="fas fa-chart-area text-primary"></i>
+                        Динамика по месяцам
+                    </h5>
+                    <canvas id="dynamicsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Графики: Типы и Таблица -->
+        <div class="row">
+            <div class="col-md-6 mb-3 fade-in">
+                <div class="chart-card">
+                    <h5 class="chart-title">
+                        <i class="fas fa-chart-pie text-primary"></i>
+                        Распределение по типам
+                    </h5>
+                    <canvas id="typesChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-3 fade-in">
+                <div class="table-card">
+                    <h5 class="chart-title">
+                        <i class="fas fa-trophy text-warning"></i>
+                        Топ-5 медленных согласований
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>№ Договора</th>
+                                    <th>Контрагент</th>
+                                    <th>Статус</th>
+                                    <th>Ответственный</th>
+                                    <th>Дней</th>
+                                </tr>
+                            </thead>
+                            <tbody id="slowest-table">
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">Загрузка...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Глобальные переменные для графиков
+        let funnelChart, dynamicsChart, typesChart;
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAllData();
+            
+            // Автообновление каждые 60 секунд
+            setInterval(loadAllData, 60000);
+        });
+        
+        // Загрузка всех данных
+        async function loadAllData() {
+            await Promise.all([
+                loadKpiCards(),
+                loadFunnelChart(),
+                loadDynamicsChart(),
+                loadTypesChart(),
+                loadSlowestContracts()
+            ]);
+        }
+        
+        // Обновление всех данных (кнопка)
+        async function refreshAllData() {
+            const btn = document.querySelector('.refresh-btn i');
+            btn.classList.add('fa-spin');
+            await loadAllData();
+            btn.classList.remove('fa-spin');
+        }
+        
+        // Загрузка KPI-карточек
+        async function loadKpiCards() {
+            try {
+                const response = await fetch('/api/kpi/');
+                const data = await response.json();
+                
+                document.getElementById('kpi-total').textContent = data.total;
+                document.getElementById('kpi-approval').textContent = data.on_approval;
+                document.getElementById('kpi-overdue').textContent = data.overdue;
+                document.getElementById('kpi-avg-days').textContent = data.avg_days;
+            } catch (error) {
+                console.error('Ошибка загрузки KPI:', error);
+            }
+        }
+        
+        // Загрузка воронки согласования
+        async function loadFunnelChart() {
+            try {
+                const response = await fetch('/api/funnel/');
+                const data = await response.json();
+                
+                const ctx = document.getElementById('funnelChart').getContext('2d');
+                
+                if (funnelChart) {
+                    funnelChart.destroy();
+                }
+                
+                funnelChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Количество договоров',
+                            data: data.counts,
+                            backgroundColor: data.colors,
+                            borderColor: data.colors.map(c => c),
+                            borderWidth: 2,
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Количество: ${context.parsed.y}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки воронки:', error);
+            }
+        }
+        
+        // Загрузка динамики по месяцам
+        async function loadDynamicsChart() {
+            try {
+                const response = await fetch('/api/dynamics/');
+                const data = await response.json();
+                
+                const ctx = document.getElementById('dynamicsChart').getContext('2d');
+                
+                if (dynamicsChart) {
+                    dynamicsChart.destroy();
+                }
+                
+                dynamicsChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [
+                            {
+                                label: 'Создано',
+                                data: data.created,
+                                borderColor: '#0d6efd',
+                                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            },
+                            {
+                                label: 'Подписано',
+                                data: data.signed,
+                                borderColor: '#198754',
+                                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки динамики:', error);
+            }
+        }
+        
+        // Загрузка распределения по типам
+        async function loadTypesChart() {
+            try {
+                const response = await fetch('/api/types/');
+                const data = await response.json();
+                
+                const ctx = document.getElementById('typesChart').getContext('2d');
+                
+                if (typesChart) {
+                    typesChart.destroy();
+                }
+                
+                typesChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            data: data.counts,
+                            backgroundColor: data.colors,
+                            borderColor: '#fff',
+                            borderWidth: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'right'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        animation: {
+                            animateRotate: true,
+                            animateScale: true,
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки типов:', error);
+            }
+        }
+        
+        // Загрузка топ-5 медленных согласований
+        async function loadSlowestContracts() {
+            try {
+                const response = await fetch('/api/slowest/');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('slowest-table');
+                tbody.innerHTML = '';
+                
+                if (data.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Нет данных</td></tr>';
+                    return;
+                }
+                
+                data.data.forEach(contract => {
+                    const row = `
+                        <tr>
+                            <td><strong>${contract.number}</strong></td>
+                            <td>${contract.counterparty}</td>
+                            <td><span class="badge bg-secondary">${contract.status}</span></td>
+                            <td>${contract.responsible}</td>
+                            <td><span class="badge badge-slow">${contract.days} дн.</span></td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки медленных договоров:', error);
+            }
+        }
+    </script>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
