@@ -1,0 +1,194 @@
+/* ========================================
+   CSS-переменные для цветовой схемы
+   ======================================== */
+:root {
+    --primary-color: #0d6efd;
+    --success-color: #198754;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #0dcaf0;
+}
+
+/* ========================================
+   Базовые стили страницы
+   ======================================== */
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.dashboard-container {
+    padding: 20px;
+}
+
+/* ========================================
+   Заголовок дашборда
+   ======================================== */
+.dashboard-header {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+   KPI Карточки
+   ======================================== */
+.kpi-card {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-left: 5px solid var(--primary-color);
+}
+
+.kpi-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Цветовые модификаторы для карточек */
+.kpi-card.success {
+    border-left-color: var(--success-color);
+}
+
+.kpi-card.warning {
+    border-left-color: var(--warning-color);
+}
+
+.kpi-card.danger {
+    border-left-color: var(--danger-color);
+}
+
+.kpi-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+}
+
+.kpi-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.kpi-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* ========================================
+   Карточки графиков
+   ======================================== */
+.chart-card {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.chart-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #2c3e50;
+}
+
+/* ========================================
+   Таблица медленных согласований
+   ======================================== */
+.table-card {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.table thead th {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+}
+
+.table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.badge-slow {
+    background: var(--danger-color);
+    font-size: 0.9rem;
+}
+
+/* ========================================
+   Кнопка обновления
+   ======================================== */
+.refresh-btn {
+    transition: transform 0.3s ease;
+}
+
+/* ========================================
+   Анимации
+   ======================================== */
+.loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 40px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* ========================================
+   Адаптивность (Media Queries)
+   ======================================== */
+@media (max-width: 768px) {
+    .kpi-value {
+        font-size: 2rem;
+    }
+
+    .kpi-icon {
+        font-size: 2rem;
+    }
+}
+
+/* ========================================
+   Стили для Bootstrap tooltips
+   ======================================== */
+.tooltip-inner {
+    max-width: 300px;
+    padding: 12px 16px;
+    background-color: rgba(44, 62, 80, 0.95);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tooltip.bs-tooltip-bottom .tooltip-arrow::before {
+    border-bottom-color: rgba(44, 62, 80, 0.95);
+}
+
+/* Анимация появления tooltip */
+.tooltip.fade {
+    transition: opacity 0.2s ease;
+}
