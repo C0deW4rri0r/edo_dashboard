@@ -39,7 +39,10 @@
         <!-- KPI Карточки -->
         <div class="row mb-4">
             <div class="col-12 col-sm-6 col-lg-3 mb-3 fade-in">
-                <div class="kpi-card h-100">
+                <div class="kpi-card h-100" 
+                    data-bs-toggle="tooltip" 
+                    data-bs-placement="bottom"
+                    title="Общее количество всех договоров в системе за всё время">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="kpi-label">Всего договоров</div>
@@ -53,7 +56,10 @@
             </div>
             
             <div class="col-12 col-sm-6 col-lg-3 mb-3 fade-in">
-                <div class="kpi-card warning h-100">
+                <div class="kpi-card warning h-100" 
+                    data-bs-toggle="tooltip" 
+                    data-bs-placement="bottom"
+                    title="Договоры, находящиеся на этапах согласования (юрист, бухгалтер, подписание)">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="kpi-label">На согласовании</div>
@@ -67,7 +73,10 @@
             </div>
             
             <div class="col-12 col-sm-6 col-lg-3 mb-3 fade-in">
-                <div class="kpi-card danger h-100">
+                <div class="kpi-card danger h-100" 
+                    data-bs-toggle="tooltip" 
+                    data-bs-placement="bottom"
+                    title="Договоры, находящиеся на согласовании более 14 дней">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="kpi-label">Просрочено</div>
@@ -81,7 +90,10 @@
             </div>
             
             <div class="col-12 col-sm-6 col-lg-3 mb-3 fade-in">
-                <div class="kpi-card success h-100">
+                <div class="kpi-card success h-100" 
+                    data-bs-toggle="tooltip" 
+                    data-bs-placement="bottom"
+                    title="Среднее время от создания до подписания договора (в днях)">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="kpi-label">Среднее время (дни)</div>
