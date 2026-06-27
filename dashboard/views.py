@@ -6,6 +6,19 @@ from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from django.views.decorators.cache import cache_page
 from datetime import timedelta
+
+
+def _add_months(date_value, months):
+    """Возвращает дату, смещенную на указанное число месяцев.
+
+    Используется для графика динамики, чтобы не получать дубли месяцев
+    при приблизительном расчете через timedelta(days=30).
+    """
+    month_index = date_value.month - 1 + months
+    year = date_value.year + month_index // 12
+    month = month_index % 12 + 1
+    return date_value.replace(year=year, month=month, day=1)
+
 from .models import Contract
 from django.db.models.functions import Now
 
@@ -140,15 +153,18 @@ def monthly_dynamics(request):
         created_dict = {item['month'].strftime('%Y-%m'): item['count'] for item in created_by_month}
         signed_dict = {item['month'].strftime('%Y-%m'): item['count'] for item in signed_by_month}
         
-        # Генерируем последние 12 месяцев
+        # Генерируем последние 12 календарных месяцев.
+        # Раньше использовался timedelta(days=i*30), из-за чего на границах
+        # месяцев могли появляться дубли или пропуски.
         labels = []
         created_counts = []
         signed_counts = []
+        current_month = timezone.now().replace(day=1)
         
-        for i in range(11, -1, -1):
-            date = timezone.now() - timedelta(days=i*30)
+        for offset in range(-11, 1):
+            date = _add_months(current_month, offset)
             month_str = date.strftime('%Y-%m')
-            month_label = date.strftime('%b %Y')  # Например: "Jan 2024"
+            month_label = date.strftime('%m.%Y')
             
             labels.append(month_label)
             created_counts.append(created_dict.get(month_str, 0))
